@@ -128,6 +128,7 @@ app.get('/painting', async (req, res) => {
 	title: title,
 	description: description
     };
+
     res.render('painting', viewData);
 });
     
@@ -138,50 +139,28 @@ app.get('/paintings', async (req, res) => {
     const viewData = {
 	paintings: result.rows
     };
+
     res.render('gallery', viewData);
         
-/*    const imageCards = result.rows.map(row => {
-
-	const base64Image = row.thumbnail_image.toString('base64');
-	const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
-
-	return `
-                <div class="card">
-                    <a href="/painting?id=${row.id}">
-                    <img src="${imageSrc}" alt="${row.title}" />
-                    <div class="card-body">
-                        <h3>${row.title}</h3>
-                        <!--<p>${row.description || 'No description available.'}</p>-->
-                    </div>
-                    </a>
-                </div>
-            `;
-    }).join('');
-
-    let htmlOutput = htmlHead();
-    htmlOutput += `
-
-                <h1>Paintings</h1>
-                
-                <div class="gallery">
-`;
-    htmlOutput += imageCards;
-    htmlOutput += htmlFoot();
-    res.send(htmlOutput); */
 });
 
+// handle post data from the login form
 app.post('/login', (req, res) => {
 
     let body = '';
 
     req.on('data', chunk => { body += chunk; });
+
     req.on('end', () => {
+
 	console.log(body);
 	let formData = parseFormData(body);
 	console.log(formData);
 	const { password } = formData;
 	console.log(password);
+
 	if (password === SECRET_PASSWORD) {
+
 	    const newSessionId = crypto.randomBytes(16).toString('hex');
 	    sessions[newSessionId] = { username: 'admin' };
 
@@ -191,16 +170,25 @@ app.post('/login', (req, res) => {
 	    });
 	    res.send();
 	} else {
-
 	    // invalid password
 	    res.send('<h3>Invalid credentials. <a href="/login">Try again</a></h3>');
 	}
     });
 });
 
+// show the login page
 app.get('/login', (req, res) => {
 
-    let htmlOutput = htmlHead() + `
+    // check if they're logged in and redirect to the admin page if they are
+    if (requireAuthentication(req)) {
+	res.writeHead(303, { 'Location': '/admin' });
+        res.end();
+	return;
+    }
+
+    res.render('login', {});
+
+/*    let htmlOutput = htmlHead() + `
                 
                 <div class="form-container">
                     <h2>Login</h2>
@@ -213,7 +201,7 @@ app.get('/login', (req, res) => {
                     </form>
                 </div>
 `+htmlFoot();
-    res.send(htmlOutput);
+    res.send(htmlOutput); */
 });
 	
 // process log out request

@@ -1,0 +1,14 @@
+<%- include('partials/header') %>
+
+<div class="form-container">
+  <h2>Login</h2>
+  <form action="/login" method="POST" enctype="multipart/x-www-form-urlencoded">
+    <div class="form-group">
+      <label for="password">Password:</label>
+      <input type="password" id="password" name="password" required placeholder="Enter secret password" />
+    </div>
+    <button type="submit" class="submit-btn">Submit</button>
+  </form>
+</div>
+
+<%- include('partials/footer') %>
