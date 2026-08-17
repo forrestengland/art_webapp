@@ -361,86 +361,27 @@ app.get('/admin', async (req, res) => {
     try {
 	
         const result = await pool.query('SELECT id, title, description, thumbnail_image, mime_type FROM gallery_images ORDER BY id DESC');
+
+	const viewData = {
+	    paintings: result.rows
+	};
+	
+	res.render('gallery_admin', viewData);
             
-        const imageCards = result.rows.map(row => {
-	    const base64Image = row.thumbnail_image.toString('base64');
-	    const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
-
-	    return `
-                <div class="card">
-                    <img src="${imageSrc}" alt="${row.title}" />
-                    <div class="card-body">
-                        <h3>${row.title}</h3>
-                        <p>${row.description || 'No description available.'}</p>
-                        <a href="/edit?id=${row.id}">edit</a>
-                        <a href="/delete?id=${row.id}">delete</a>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        let htmlOutput = htmlHead() + `
-                
-                <!-- New Image Upload Form Interface Element -->
-                <div class="form-container">
-                    <h2>Upload New Image</h2>
-                    <form action="/upload" method="POST" enctype="multipart/form-data">
-                        <div class="form-group">
-                            <label for="title">Image Title</label>
-                            <input type="text" id="title" name="title" required placeholder="Enter an image title" />
-                        </div>
-                        <div class="form-group">
-                            <label for="description">Description</label>
-                            <textarea id="description" name="description" rows="3" placeholder="Enter optional details..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="image">Choose Image File *</label>
-                            <input type="file" id="image" name="image" accept="image/*" required />
-                        </div>
-<div class="form-group">
-<!--                            <label for="password">Upload Secret Password *</label>
-                            <input type="password" id="password" name="password" required placeholder="Enter secret password to verify upload" /> -->
-                        </div>
-                        <button type="submit" class="submit-btn">Upload to Database</button>
-                        <a href="/logout">Log Out</a>
-                    </form>
-                </div>
-
-                <div class="gallery">
-                    ${imageCards || '<p style="text-align:center; width:100%;">No images found in the database directory.</p>'}
-                </div>` + htmlFoot();
-
-        res.send(htmlOutput);
-
     } catch (err) {
+
         console.error("Server display rendering error:", err);
         res.writeHead(500, { 'Content-Type': 'text/plain' });
         res.end('Internal Server Error');
+
     }
 });
 
 // default page output - home
 app.get('/', (req, res) => {
 
-    let htmlOutput = htmlHead();
-    htmlOutput += `
-                <h1>Pierce Forrest England</h1>
-                
-                <div class="gallery">
+    res.render('home', {});
 
-                    <div class="card">
-                    <a href="/paintings">
-                    <img src="/images/lenny.jpg" alt="Dog Painting" />
-                    <div class="card-body">
-                        <h3>Paintings</h3>
-                        <p>recent oil paintings</p>
-                    </div>
-                    </a>
-                </div>
-`;
-    htmlOutput += htmlFoot();
-
-    res.send(htmlOutput);
 });
 
 app.listen(PORT, () => console.log(`art_webapp server running at port ${PORT}`));
