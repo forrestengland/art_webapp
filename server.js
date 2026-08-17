@@ -70,35 +70,11 @@ function requireAuthentication(req) {
     }
 }
 
-function htmlHead() {
-        const htmlOutput = `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Pierce Forrest England</title>
-                <link rel="stylesheet" href="/styles/pfe.css">
-            </head>
-            <body>
-        `;
-    return htmlOutput;
-}
-
-function htmlFoot() {
-            const htmlOutput = `
-
-                </div>
-            </body>
-            </html>
-`;
-    return htmlOutput;
-
-}
-
+// static resources
 app.use('/images', express.static(path.join(__dirname, 'images')));
 app.use('/styles', express.static(path.join(__dirname, 'styles')));
 
+// painting detail page
 app.get('/painting', async (req, res) => {
 
     const id = req.query.id;
@@ -131,7 +107,8 @@ app.get('/painting', async (req, res) => {
 
     res.render('painting', viewData);
 });
-    
+
+// gallery page
 app.get('/paintings', async (req, res) => {
 
     const result = await pool.query('SELECT id, title, description, thumbnail_image, mime_type FROM gallery_images ORDER BY id DESC');
