@@ -1,1 +1,1 @@
-pm2 restart pierceforrestengland.com
+pm2 restart art_webapp

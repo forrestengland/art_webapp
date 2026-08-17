@@ -1,5 +1,7 @@
 // pierceforrestengland.com image web server
 
+import 'dotenv/config'; // load hidden database connection and login info immediately
+
 import http from 'http';
 import pkg from 'pg';
 import busboy from 'busboy';
@@ -20,14 +22,14 @@ const { Pool } = pkg;
 const PORT = 3002;
 
 const pool = new Pool({
-    user: 'myuser',
-    host: 'localhost',
-    database: 'mydb',
-    password: 'mysecurepassword',
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
     port: 5432,
 });
 
-const SECRET_PASSWORD = "mysecretadminpwd";
+const SECRET_PASSWORD = process.env.LOGIN_SECRET_KEY;
 
 const sessions = {};
 

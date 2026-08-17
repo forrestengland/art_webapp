@@ -1,1 +1,1 @@
-pm2 logs pierceforrestengland.com --lines 20
+pm2 logs art_webapp --lines 20
