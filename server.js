@@ -2,7 +2,8 @@
 
 import 'dotenv/config'; // load hidden database connection and login info immediately
 
-import http from 'http';
+import express from 'express';
+
 import pkg from 'pg';
 import busboy from 'busboy';
 
@@ -19,6 +20,7 @@ const __dirname = path.dirname(__filename);
 
 const { Pool } = pkg;
 
+const app = express();
 const PORT = 3002;
 
 const pool = new Pool({
@@ -79,93 +81,55 @@ function htmlFoot() {
 
 }
 
-const server = http.createServer(async (req, res) => {
+app.use('/images', express.static(path.join(__dirname, 'images')));
+app.use('/styles', express.static(path.join(__dirname, 'styles')));
 
-    const fullUrl = new URL(req.url, `https://${req.headers.host}`);
-    const pathname = fullUrl.pathname;
+app.get('/painting', async (req, res) => {
 
-    const cookies = parseCookies(req.headers.cookie);
-    const sessionId = cookies.session_id;
-    const userSession = sessions[sessionId]; // undefined if not logged in
+    const id = req.query.id;
+    if (!id) {
+	res.send('no painting id provided');
+	return;
+    }
 
-    // static image serving for main page
-    if (req.url.startsWith('/images/')) {
-
-	const safeUrl = path.normalize(req.url).replace(/^(\.\.[\/\\])+/, '');
-	const filePath = path.join(__dirname, safeUrl);
-
-	fs.readFile(filePath, (err, data) => {
-	    if (err) {
-		res.writeHead(404, {'Content-Type':''});
-		return res.end('Image not found');
-	    }
-
-	    const ext = path.extname(filePath).toLowerCase();
-	    const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
-
-	    res.writeHead(200, {'Content-Type': mimeType});
-	    res.end(data);
-	});
-
-    } else if (req.url.startsWith('/styles/')) { // static css serving
-
-	const safeUrl = path.normalize(req.url).replace(/^(\.\.[\/\\])+/, '');
-	const filePath = path.join(__dirname, safeUrl);
-
-	fs.readFile(filePath, (err, data) => {
-	    if (err) {
-		res.writeHead(404, {'Content-Type':''});
-		return res.end('stylesheet not found');
-	    }
-
-	    res.writeHead(200, {'Content-Type': 'text/css'});
-	    res.end(data);
-	});
-	
-	
-    } else if (pathname === '/painting') { // view an individual painting
-
-	const id = fullUrl.searchParams.get('id');
-
-	const query = `SELECT id, title, description, image_data, mime_type FROM gallery_images WHERE id = ${id}`;
-	console.log(query);
-	const result = await pool.query(query);
+    const query = `SELECT id, title, description, image_data, mime_type FROM gallery_images WHERE id = ${id}`;
+    console.log(query);
+    const result = await pool.query(query);
         
-        const image = result.rows.map(row => {
+    const image = result.rows.map(row => {
 
-	    const base64Image = row.image_data.toString('base64');
-	    const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
+	const base64Image = row.image_data.toString('base64');
+	const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
 
-	    return `
+	return `
                 <div class="image-full">
                     <h1>${row.title}</h1>
                     <img width="800px" src="${imageSrc}" alt="${row.title}" />
                     <p>${row.description || 'No description available.'}</p>
                 </div>
             `;
-	}).join('');
+    }).join('');
 
-	let htmlOutput = htmlHead();
-	htmlOutput += `
+    let htmlOutput = htmlHead();
+    htmlOutput += `
 
                 <div class="gallery">
 `;
-	htmlOutput += image;
-	htmlOutput += htmlFoot();
-	res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(htmlOutput);
-
+    htmlOutput += image;
+    htmlOutput += htmlFoot();
+    res.send(htmlOutput);
+});
     
-    } else if (pathname === '/paintings') { // view painting gallery with thumbnails
+app.get('/paintings', async (req, res) => {
 
-        const result = await pool.query('SELECT id, title, description, thumbnail_image, mime_type FROM gallery_images ORDER BY id DESC');
+    const result = await pool.query('SELECT id, title, description, thumbnail_image, mime_type FROM gallery_images ORDER BY id DESC');
         
-        const imageCards = result.rows.map(row => {
+    const imageCards = result.rows.map(row => {
 
-	    const base64Image = row.thumbnail_image.toString('base64');
-	    const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
+	const base64Image = row.thumbnail_image.toString('base64');
+	const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
 
-	    return `
+	return `
                 <div class="card">
                     <a href="/painting?id=${row.id}">
                     <img src="${imageSrc}" alt="${row.title}" />
@@ -176,61 +140,62 @@ const server = http.createServer(async (req, res) => {
                     </a>
                 </div>
             `;
-        }).join('');
+    }).join('');
 
-	let htmlOutput = htmlHead();
-	htmlOutput += `
+    let htmlOutput = htmlHead();
+    htmlOutput += `
 
                 <h1>Paintings</h1>
                 
                 <div class="gallery">
 `;
-	htmlOutput += imageCards;
-	htmlOutput += htmlFoot();
-	res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(htmlOutput);
+    htmlOutput += imageCards;
+    htmlOutput += htmlFoot();
+    res.send(htmlOutput);
+});
 
-    } else if (req.url === '/login') {
+app.post('/login', (req, res) => {
 
-	// password submission
-	if (req.method === 'POST') {
+    let body = '';
 
-	    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+	console.log(body);
+	let formData = parseFormData(body);
+	console.log(formData);
+	const { password } = formData;
+	console.log(password);
+	if (password === SECRET_PASSWORD) {
+	    const newSessionId = crypto.randomBytes(16).toString('hex');
+	    sessions[newSessionId] = { username: 'admin' };
 
-	    req.on('data', chunk => { body += chunk; });
-	    req.on('end', () => {
-		console.log(body);
-		let formData = parseFormData(body);
-		console.log(formData);
-		const { password } = formData;
-		console.log(password);
-		if (password === SECRET_PASSWORD) {
-		    const newSessionId = crypto.randomBytes(16).toString('hex');
-		    sessions[newSessionId] = { username: 'admin' };
-
-		    res.writeHead(302, {
-			'Set-Cookie': `session_id=${newSessionId}; Path=/; httpOnly`,
-			'Location': '/admin'
-		    });
-		    return res.end();
-		} else {
-
-		    // invalid password
-		    res.writeHead(401, {'Content-Type': 'text/html'});
-		    return res.end('<h3>Invalid credentials. <a href="/login">Try again</a></h3>');
-		}
+	    res.writeHead(302, {
+		'Set-Cookie': `session_id=${newSessionId}; Path=/; httpOnly`,
+		'Location': '/admin'
 	    });
-	    return;
-	    
-	} else if (req.method === 'GET') { // view login page
-	    
-	    // if already logged in proceed to main admin page
-	    if (userSession) {
-		res.writeHead(302, {'Location': '/admin'});
-		return res.end();
-	    }
+	    res.send();
+	} else {
 
-            let htmlOutput = htmlHead() + `
+	    // invalid password
+	    res.send('<h3>Invalid credentials. <a href="/login">Try again</a></h3>');
+	}
+    });
+});
+
+app.get('/login', (req, res) => {
+
+    const cookies = parseCookies(req.headers.cookie);
+    const sessionId = cookies.session_id;
+    const userSession = sessions[sessionId]; // undefined if not logged in
+	    
+    // if already logged in proceed to main admin page
+    if (userSession) {
+	res.writeHead(302, {'Location': '/admin'});
+	res.send();
+	return;
+    }
+    
+    let htmlOutput = htmlHead() + `
                 
                 <div class="form-container">
                     <h2>Login</h2>
@@ -243,152 +208,186 @@ const server = http.createServer(async (req, res) => {
                     </form>
                 </div>
 `+htmlFoot();
-            res.end(htmlOutput);	    
-	}
+    res.send(htmlOutput);
+});
 	
-    // process log out request
-    } else if (req.method === 'GET' && req.url === '/logout') {
+// process log out request
+app.get('/logout', (req, res) => {
 
-	if (sessionId) {
-	    delete sessions[sessionId];
-	}
+    const cookies = parseCookies(req.headers.cookie);
+    const sessionId = cookies.session_id;
+    const userSession = sessions[sessionId]; // undefined if not logged in
 
-	// Clear cookie by setting its expiration date to the past
-	res.writeHead(302, {
-	    'Set-Cookie': 'session_id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly',
-	    'Location': '/login'
-	});
-	return res.end();
+    if (sessionId) {
+	delete sessions[sessionId];
+    }
 
-    // process image upload
-    } else if (req.method === 'POST' && req.url === '/upload') {
+    // Clear cookie by setting its expiration date to the past
+    res.writeHead(302, {
+	'Set-Cookie': 'session_id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly',
+	'Location': '/login'
+    });
+    res.send();
+});
 
-        const bb = busboy({ headers: req.headers });
-        const fields = {};
-        let imageBuffer = Buffer.alloc(0);
-        let mimeType = '';
-	let isUploadAborted = false;
+// process image upload
+app.post('/upload', (req, res) => {
 
-        // Capture regular text fields (title, description, password)
-        bb.on('field', (name, val) => {
-            fields[name] = val;
+    const cookies = parseCookies(req.headers.cookie);
+    const sessionId = cookies.session_id;
+    const userSession = sessions[sessionId]; // undefined if not logged in
+
+    // if session doesn't exist redirect to login page
+    if (!userSession) {
+	res.writeHead(302, {'Location': '/login'});
+	res.end();
+	return;
+    }
+
+    const bb = busboy({ headers: req.headers });
+    const fields = {};
+    let imageBuffer = Buffer.alloc(0);
+    let mimeType = '';
+    let isUploadAborted = false;
+
+    // Capture regular text fields (title, description, password)
+    bb.on('field', (name, val) => {
+        fields[name] = val;
+    });
+
+    // Stream and combine raw file chunks into a single binary buffer
+    bb.on('file', (name, file, info) => {
+        mimeType = info.mimeType;
+        file.on('data', (data) => {
+	    if (!isUploadAborted) {
+                imageBuffer = Buffer.concat([imageBuffer, data]);
+	    }
         });
+    });
 
-        // Stream and combine raw file chunks into a single binary buffer
-        bb.on('file', (name, file, info) => {
-            mimeType = info.mimeType;
-            file.on('data', (data) => {
-		if (!isUploadAborted) {
-                    imageBuffer = Buffer.concat([imageBuffer, data]);
-		}
-            });
-        });
+    // Once parsing completes, insert data into PostgreSQL
+    bb.on('finish', async () => {
 
-        // Once parsing completes, insert data into PostgreSQL
-        bb.on('finish', async () => {
-
-	    if (isUploadAborted) return;
+	if (isUploadAborted) return;
 	    
-            try {
+        try {
 
-                if (!fields.title || imageBuffer.length === 0) {
-                    res.writeHead(400, { 'Content-Type': 'text/plain' });
-                    res.end('Missing required fields: Title and Image are mandatory.');
-                    return;
-                }
-
-		// create the thumbnail
-		const thumbnailBuffer = await sharp(imageBuffer)
-		      .resize({ width: 300 }) // Adjust size as needed
-		      .toBuffer();
-
-
-                await pool.query(
-                    'INSERT INTO gallery_images (title, description, image_data, mime_type, thumbnail_image) VALUES ($1, $2, $3, $4, $5)',
-                    [fields.title, fields.description || '', imageBuffer, mimeType, thumbnailBuffer]
-                );
-
-                // Redirect back to the gallery home screen upon success
-                res.writeHead(303, { 'Location': '/admin' });
-                res.end();
-
-            } catch (err) {
-                console.error("Database Save Error:", err);
-                res.writeHead(500, { 'Content-Type': 'text/plain' });
-                res.end('Internal Server Error while saving to database.');
+            if (!fields.title || imageBuffer.length === 0) {
+//                res.writeHead(400, { 'Content-Type': 'text/plain' });
+                res.send('Missing required fields: Title and Image are mandatory.');
+                return;
             }
-        });
 
-        req.pipe(bb);
-        return;
+	    // create the thumbnail
+	    const thumbnailBuffer = await sharp(imageBuffer)
+		  .resize({ width: 300 }) // Adjust size as needed
+		  .toBuffer();
 
-    } else if (pathname === '/delete' && req.method === 'GET') { // image delete request
 
-	// if session doesn't exist redirect to login page
-	if (!userSession) {
-	    res.writeHead(302, {'Location': '/login'});
-	    return res.end();
-	}
-
-	const id = fullUrl.searchParams.get('id');
-	const query = `DELETE FROM gallery_images WHERE id = ${id}`;
-	console.log(query);
-	const result = await pool.query(query);
-
-	res.writeHead(302, {'Location': '/admin'});
-	return res.end();
-
-    } else if (pathname === '/update' && req.method === 'POST') { // image info update request
-
-	// if session doesn't exist redirect to login page
-	if (!userSession) {
-	    res.writeHead(302, {'Location': '/login'});
-	    return res.end();
-	}
-
-	let body = '';
-
-	req.on('data', chunk => { body += chunk; });
-	
-	req.on('end', async () => {
-
-	    console.log(body);
-	    let formData = parseFormData(body);
-	    console.log(formData);
-
-	    const { id, title, description } = formData;
-
-	    await pool.query(
-                'UPDATE gallery_images SET title = $1, description = $2 WHERE id = $3',
-                [title, description || '', id]
+            await pool.query(
+                'INSERT INTO gallery_images (title, description, image_data, mime_type, thumbnail_image) VALUES ($1, $2, $3, $4, $5)',
+                [fields.title, fields.description || '', imageBuffer, mimeType, thumbnailBuffer]
             );
 
-	    res.writeHead(302, {'Location': '/admin'});
-	    return res.end();
+            // Redirect back to the gallery home screen upon success
+            res.writeHead(303, { 'Location': '/admin' });
+            res.end();
 
-	});
-	return;	
+        } catch (err) {
+            console.error("Database Save Error:", err);
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end('Internal Server Error while saving to database.');
+        }
+    });
 
-    } else if (pathname === '/edit' && req.method === 'GET') { // image delete request
+    req.pipe(bb);
+});
 
-	// if session doesn't exist redirect to login page
-	if (!userSession) {
-	    res.writeHead(302, {'Location': '/login'});
-	    return res.end();
-	}
+// image delete request
+app.get('/delete', async (req, res) => {
 
-	const id = fullUrl.searchParams.get('id');
+    const cookies = parseCookies(req.headers.cookie);
+    const sessionId = cookies.session_id;
+    const userSession = sessions[sessionId]; // undefined if not logged in
+    
+    // if session doesn't exist redirect to login page
+    if (!userSession) {
+	res.writeHead(302, {'Location': '/login'});
+	res.end();
+	return;
+    }
 
-	const query = `SELECT id, title, description, thumbnail_image, mime_type FROM gallery_images WHERE id = ${id}`;
-	console.log(query);
-	const result = await pool.query(query);
+    const id = req.query.id;
+    const query = `DELETE FROM gallery_images WHERE id = ${id}`;
+    console.log(query);
+    const result = await pool.query(query);
 
-	const image = result.rows.map(row => {
+    res.writeHead(302, {'Location': '/admin'});
+    res.end();
+});
 
-	    const base64Image = row.thumbnail_image.toString('base64');
-	    const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
+// image info update request
+app.post('/update', (req, res) => {
 
-	    return `
+    const cookies = parseCookies(req.headers.cookie);
+    const sessionId = cookies.session_id;
+    const userSession = sessions[sessionId]; // undefined if not logged in
+
+    // if session doesn't exist redirect to login page
+    if (!userSession) {
+	res.writeHead(302, {'Location': '/login'});
+	res.end();
+	return;
+    }
+
+    let body = '';
+
+    req.on('data', chunk => { body += chunk; });
+	
+    req.on('end', async () => {
+
+	console.log(body);
+	let formData = parseFormData(body);
+	console.log(formData);
+
+	const { id, title, description } = formData;
+
+	await pool.query(
+            'UPDATE gallery_images SET title = $1, description = $2 WHERE id = $3',
+            [title, description || '', id]
+        );
+
+	res.writeHead(302, {'Location': '/admin'});
+	res.end();
+    });
+});
+
+// image delete request
+app.get('/edit', async (req, res) => {
+
+    const cookies = parseCookies(req.headers.cookie);
+    const sessionId = cookies.session_id;
+    const userSession = sessions[sessionId]; // undefined if not logged in
+
+    // if session doesn't exist redirect to login page
+    if (!userSession) {
+	res.writeHead(302, {'Location': '/login'});
+	res.end();
+	return;
+    }
+
+    const id = req.query.id;
+
+    const query = `SELECT id, title, description, thumbnail_image, mime_type FROM gallery_images WHERE id = ${id}`;
+    console.log(query);
+    const result = await pool.query(query);
+
+    const image = result.rows.map(row => {
+
+	const base64Image = row.thumbnail_image.toString('base64');
+	const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
+
+	return `
                 <!-- New Image Upload Form Interface Element -->
                 <div class="form-container">
                     <h2>Edit Image</h2>
@@ -412,35 +411,41 @@ const server = http.createServer(async (req, res) => {
 
                 <img src="${imageSrc}" alt="${row.title}" />
             `;
-	}).join('');
+    }).join('');
 
-	let htmlOutput = htmlHead();
-	htmlOutput += `
+    let htmlOutput = htmlHead();
+    htmlOutput += `
 
                 <div class="gallery">
 `;
-	htmlOutput += image;
-	htmlOutput += htmlFoot();
-	res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(htmlOutput);
+    htmlOutput += image;
+    htmlOutput += htmlFoot();
+    res.send(htmlOutput);
+});
 	
-    } else if (pathname === '/admin' && req.method === 'GET') {
+app.get('/admin', async (req, res) => {
+    
+    const cookies = parseCookies(req.headers.cookie);
+    const sessionId = cookies.session_id;
+    const userSession = sessions[sessionId]; // undefined if not logged in
 
-	// if session doesn't exist redirect to login page
-	if (!userSession) {
-	    res.writeHead(302, {'Location': '/login'});
-	    return res.end();
-	}
+    // if session doesn't exist redirect to login page
+    if (!userSession) {
+	res.writeHead(302, {'Location': '/login'});
+	res.end();
+	return;
+    }
 
-	// display upload form and gallery
-	try {
-            const result = await pool.query('SELECT id, title, description, thumbnail_image, mime_type FROM gallery_images ORDER BY id DESC');
+    // display upload form and gallery
+    try {
+	
+        const result = await pool.query('SELECT id, title, description, thumbnail_image, mime_type FROM gallery_images ORDER BY id DESC');
             
-            const imageCards = result.rows.map(row => {
-		const base64Image = row.thumbnail_image.toString('base64');
-		const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
+        const imageCards = result.rows.map(row => {
+	    const base64Image = row.thumbnail_image.toString('base64');
+	    const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
 
-		return `
+	    return `
                 <div class="card">
                     <img src="${imageSrc}" alt="${row.title}" />
                     <div class="card-body">
@@ -451,9 +456,9 @@ const server = http.createServer(async (req, res) => {
                     </div>
                 </div>
             `;
-            }).join('');
+        }).join('');
 
-            let htmlOutput = htmlHead() + `
+        let htmlOutput = htmlHead() + `
                 
                 <!-- New Image Upload Form Interface Element -->
                 <div class="form-container">
@@ -484,19 +489,20 @@ const server = http.createServer(async (req, res) => {
                     ${imageCards || '<p style="text-align:center; width:100%;">No images found in the database directory.</p>'}
                 </div>` + htmlFoot();
 
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end(htmlOutput);
+        res.send(htmlOutput);
 
-	} catch (err) {
-            console.error("Server display rendering error:", err);
-            res.writeHead(500, { 'Content-Type': 'text/plain' });
-            res.end('Internal Server Error');
-	}
+    } catch (err) {
+        console.error("Server display rendering error:", err);
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Internal Server Error');
+    }
+});
 
-    } else { // default page output - home
+// default page output - home
+app.get('/', (req, res) => {
 
-	let htmlOutput = htmlHead();
-	htmlOutput += `
+    let htmlOutput = htmlHead();
+    htmlOutput += `
                 <h1>Pierce Forrest England</h1>
                 
                 <div class="gallery">
@@ -511,13 +517,9 @@ const server = http.createServer(async (req, res) => {
                     </a>
                 </div>
 `;
-	htmlOutput += htmlFoot();
+    htmlOutput += htmlFoot();
 
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(htmlOutput);
-    }
+    res.send(htmlOutput);
 });
 
-server.listen(PORT, () => {
-    console.log(`pierceforrestengland server running securely at port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`art_webapp server running at port ${PORT}`));
