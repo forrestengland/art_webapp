@@ -73,6 +73,7 @@ function requireAuthentication(req) {
 // static resources
 app.use('/images', express.static(path.join(__dirname, 'images')));
 app.use('/styles', express.static(path.join(__dirname, 'styles')));
+app.use('/scripts', express.static(path.join(__dirname, 'scripts')));
 
 // painting detail page
 app.get('/painting', async (req, res) => {
@@ -99,6 +100,7 @@ app.get('/painting', async (req, res) => {
     const description = result.rows[0].description || 'No description available';
 
     const viewData = {
+	script: 0,
 	mimeType: mimeType,
 	imageSrc: imageSrc,
 	title: title,
@@ -114,6 +116,7 @@ app.get('/paintings', async (req, res) => {
     const result = await pool.query('SELECT id, title, description, thumbnail_image, mime_type FROM gallery_images ORDER BY id DESC');
 
     const viewData = {
+	script: 0,
 	paintings: result.rows
     };
 
@@ -163,7 +166,7 @@ app.get('/login', (req, res) => {
 	return;
     }
 
-    res.render('login', {});
+    res.render('login', { script: 0 });
     
 });
 	
@@ -235,10 +238,12 @@ app.post('/upload', (req, res) => {
             res.writeHead(303, { 'Location': '/admin' });
             res.end();
 
-        } catch (err) {
+        } catch (err) { // catch any errors accessing the database
+
             console.error("Database Save Error:", err);
             res.writeHead(500, { 'Content-Type': 'text/plain' });
             res.end('Internal Server Error while saving to database.');
+	    
         }
     });
 
@@ -294,7 +299,7 @@ app.post('/update', (req, res) => {
     });
 });
 
-// image delete request
+// image info edit page
 app.get('/edit', async (req, res) => {
 
     if (!requireAuthentication(req)) {
@@ -315,6 +320,7 @@ app.get('/edit', async (req, res) => {
 	const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
 
 	const viewData = {
+	    script: 0,
 	    imageSrc: imageSrc,
 	    id: row.id,
 	    title: row.title,
@@ -340,12 +346,13 @@ app.get('/admin', async (req, res) => {
         const result = await pool.query('SELECT id, title, description, thumbnail_image, mime_type FROM gallery_images ORDER BY id DESC');
 
 	const viewData = {
+	    script: "/scripts/gallery_admin.js",
 	    paintings: result.rows
 	};
-	
+
 	res.render('gallery_admin', viewData);
             
-    } catch (err) {
+    } catch (err) { // catch database errors
 
         console.error("Server display rendering error:", err);
         res.writeHead(500, { 'Content-Type': 'text/plain' });
