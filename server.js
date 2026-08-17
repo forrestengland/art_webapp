@@ -56,6 +56,20 @@ function parseFormData(bodyText) {
     return Object.fromEntries(params.entries());
 }
 
+function requireAuthentication(req) {
+
+    const cookies = parseCookies(req.headers.cookie);
+    const sessionId = cookies.session_id;
+    const userSession = sessions[sessionId]; // undefined if not logged in
+	    
+    // if already logged in proceed to main admin page
+    if (!userSession) {
+	return false;
+    } else {
+	return sessionId;
+    }
+}
+
 function htmlHead() {
         const htmlOutput = `
             <!DOCTYPE html>
@@ -181,17 +195,6 @@ app.post('/login', (req, res) => {
 
 app.get('/login', (req, res) => {
 
-    const cookies = parseCookies(req.headers.cookie);
-    const sessionId = cookies.session_id;
-    const userSession = sessions[sessionId]; // undefined if not logged in
-	    
-    // if already logged in proceed to main admin page
-    if (userSession) {
-	res.writeHead(302, {'Location': '/admin'});
-	res.send();
-	return;
-    }
-    
     let htmlOutput = htmlHead() + `
                 
                 <div class="form-container">
@@ -211,14 +214,6 @@ app.get('/login', (req, res) => {
 // process log out request
 app.get('/logout', (req, res) => {
 
-    const cookies = parseCookies(req.headers.cookie);
-    const sessionId = cookies.session_id;
-    const userSession = sessions[sessionId]; // undefined if not logged in
-
-    if (sessionId) {
-	delete sessions[sessionId];
-    }
-
     // Clear cookie by setting its expiration date to the past
     res.writeHead(302, {
 	'Set-Cookie': 'session_id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly',
@@ -230,14 +225,9 @@ app.get('/logout', (req, res) => {
 // process image upload
 app.post('/upload', (req, res) => {
 
-    const cookies = parseCookies(req.headers.cookie);
-    const sessionId = cookies.session_id;
-    const userSession = sessions[sessionId]; // undefined if not logged in
-
-    // if session doesn't exist redirect to login page
-    if (!userSession) {
-	res.writeHead(302, {'Location': '/login'});
-	res.end();
+    if (!requireAuthentication(req)) {
+	res.writeHead(303, { 'Location': '/login' });
+        res.end();
 	return;
     }
 
@@ -303,14 +293,9 @@ app.post('/upload', (req, res) => {
 // image delete request
 app.get('/delete', async (req, res) => {
 
-    const cookies = parseCookies(req.headers.cookie);
-    const sessionId = cookies.session_id;
-    const userSession = sessions[sessionId]; // undefined if not logged in
-    
-    // if session doesn't exist redirect to login page
-    if (!userSession) {
-	res.writeHead(302, {'Location': '/login'});
-	res.end();
+    if (!requireAuthentication(req)) {
+	res.writeHead(303, { 'Location': '/login' });
+        res.end();
 	return;
     }
 
@@ -326,14 +311,9 @@ app.get('/delete', async (req, res) => {
 // image info update request
 app.post('/update', (req, res) => {
 
-    const cookies = parseCookies(req.headers.cookie);
-    const sessionId = cookies.session_id;
-    const userSession = sessions[sessionId]; // undefined if not logged in
-
-    // if session doesn't exist redirect to login page
-    if (!userSession) {
-	res.writeHead(302, {'Location': '/login'});
-	res.end();
+    if (!requireAuthentication(req)) {
+	res.writeHead(303, { 'Location': '/login' });
+        res.end();
 	return;
     }
 
@@ -362,14 +342,9 @@ app.post('/update', (req, res) => {
 // image delete request
 app.get('/edit', async (req, res) => {
 
-    const cookies = parseCookies(req.headers.cookie);
-    const sessionId = cookies.session_id;
-    const userSession = sessions[sessionId]; // undefined if not logged in
-
-    // if session doesn't exist redirect to login page
-    if (!userSession) {
-	res.writeHead(302, {'Location': '/login'});
-	res.end();
+    if (!requireAuthentication(req)) {
+	res.writeHead(303, { 'Location': '/login' });
+        res.end();
 	return;
     }
 
@@ -421,15 +396,10 @@ app.get('/edit', async (req, res) => {
 });
 	
 app.get('/admin', async (req, res) => {
-    
-    const cookies = parseCookies(req.headers.cookie);
-    const sessionId = cookies.session_id;
-    const userSession = sessions[sessionId]; // undefined if not logged in
 
-    // if session doesn't exist redirect to login page
-    if (!userSession) {
-	res.writeHead(302, {'Location': '/login'});
-	res.end();
+    if (!requireAuthentication(req)) {
+	res.writeHead(303, { 'Location': '/login' });
+        res.end();
 	return;
     }
 
