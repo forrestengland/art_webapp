@@ -187,21 +187,7 @@ app.get('/login', (req, res) => {
     }
 
     res.render('login', {});
-
-/*    let htmlOutput = htmlHead() + `
-                
-                <div class="form-container">
-                    <h2>Login</h2>
-                    <form action="/login" method="POST" enctype="multipart/x-www-form-urlencoded">
-                        <div class="form-group">
-                            <label for="password">Password:</label>
-                            <input type="password" id="password" name="password" required placeholder="Enter secret password" />
-                        </div>
-                        <button type="submit" class="submit-btn">Submit</button>
-                    </form>
-                </div>
-`+htmlFoot();
-    res.send(htmlOutput); */
+    
 });
 	
 // process log out request
@@ -253,7 +239,6 @@ app.post('/upload', (req, res) => {
         try {
 
             if (!fields.title || imageBuffer.length === 0) {
-//                res.writeHead(400, { 'Content-Type': 'text/plain' });
                 res.send('Missing required fields: Title and Image are mandatory.');
                 return;
             }
@@ -352,40 +337,16 @@ app.get('/edit', async (req, res) => {
 	const base64Image = row.thumbnail_image.toString('base64');
 	const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
 
-	return `
-                <!-- New Image Upload Form Interface Element -->
-                <div class="form-container">
-                    <h2>Edit Image</h2>
-                    <form action="/update" method="POST" enctype="multipart/x-www-form-urlencoded">
-                        <input type="hidden" name="id" value="${row.id}">
-                        <div class="form-group">
-                            <label for="title">Image Title</label>
-                            <input type="text" id="title" name="title" value="${row.title}" />
-                        </div>
-                        <div class="form-group">
-                            <label for="description">Description</label>
-                            <textarea id="description" name="description" rows="3">${row.description}</textarea>
-                        </div>
-<!--                        <div class="form-group">
-                            <label for="image">Choose Image File *</label>
-                            <input type="file" id="image" name="image" accept="image/*" required />
-                        </div> -->
-                        <button type="submit" class="submit-btn">Update</button>
-                    </form>
-                </div>
+	const viewData = {
+	    imageSrc: imageSrc,
+	    id: row.id,
+	    title: row.title,
+	    description: row.description
+	};
 
-                <img src="${imageSrc}" alt="${row.title}" />
-            `;
-    }).join('');
-
-    let htmlOutput = htmlHead();
-    htmlOutput += `
-
-                <div class="gallery">
-`;
-    htmlOutput += image;
-    htmlOutput += htmlFoot();
-    res.send(htmlOutput);
+	res.render('painting_edit', viewData);
+	
+    });
 });
 	
 app.get('/admin', async (req, res) => {

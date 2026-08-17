@@ -1,0 +1,23 @@
+<%- include('partials/header') %>
+
+<div class="form-container">
+  <h2>Edit Image</h2>
+  <div class="parent-container">
+    <img src="<%= imageSrc %>" alt="<%= title %>" />
+  </div>
+  <form action="/update" method="POST" enctype="multipart/x-www-form-urlencoded">
+    <input type="hidden" name="id" value="<%= id %>">
+    <div class="form-group">
+      <label for="title">Image Title</label>
+      <input type="text" id="title" name="title" value="<%= title %>" />
+    </div>
+    <div class="form-group">
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="3"><%= description %></textarea>
+    </div>
+    <button type="submit" class="submit-btn">Update</button>
+  </form>
+</div>
+
+
+<%- include('partials/footer') %>

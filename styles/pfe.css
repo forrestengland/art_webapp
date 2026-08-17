@@ -17,3 +17,10 @@ h1, h2 { text-align: center; color: #222; }
 .card-body { padding: 15px; }
 .card-body h3 { margin: 0 0 10px 0; color: #111; }
 .card-body p { margin: 0; color: #666; font-size: 14px; line-height: 1.4; }
+
+.parent-container {
+  display: flex;
+  justify-content: center; /* Centers horizontally */
+  align-items: center;     /* Centers vertically */
+  height: 400px;           /* Example height to show vertical centering */
+}
