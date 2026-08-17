@@ -1,0 +1,19 @@
+<%- include('partials/header') %>
+
+<h1>Paintings</h1>
+<div class="gallery">
+
+<% paintings.map(painting=> { %>
+<div class="card">
+  <a href="/painting?id=<%= painting.id %>">
+    <img src="data:<%= painting.mime_type %>;base64,<%= painting.thumbnail_image.toString('base64') %>" alt="<%= painting.description %>" />
+    <div class="card-body">
+      <h3><%= painting.title%></h3>
+    </div>
+  </a>
+</div>
+<% }); %>
+
+</div>
+
+<%- include('partials/footer') %>

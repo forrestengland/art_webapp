@@ -56,13 +56,13 @@ function parseFormData(bodyText) {
     return Object.fromEntries(params.entries());
 }
 
+// check if the user is logged in, return the session id or false if they aren't logged in
 function requireAuthentication(req) {
 
     const cookies = parseCookies(req.headers.cookie);
     const sessionId = cookies.session_id;
     const userSession = sessions[sessionId]; // undefined if not logged in
 	    
-    // if already logged in proceed to main admin page
     if (!userSession) {
 	return false;
     } else {
@@ -134,8 +134,13 @@ app.get('/painting', async (req, res) => {
 app.get('/paintings', async (req, res) => {
 
     const result = await pool.query('SELECT id, title, description, thumbnail_image, mime_type FROM gallery_images ORDER BY id DESC');
+
+    const viewData = {
+	paintings: result.rows
+    };
+    res.render('gallery', viewData);
         
-    const imageCards = result.rows.map(row => {
+/*    const imageCards = result.rows.map(row => {
 
 	const base64Image = row.thumbnail_image.toString('base64');
 	const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
@@ -162,7 +167,7 @@ app.get('/paintings', async (req, res) => {
 `;
     htmlOutput += imageCards;
     htmlOutput += htmlFoot();
-    res.send(htmlOutput);
+    res.send(htmlOutput); */
 });
 
 app.post('/login', (req, res) => {
