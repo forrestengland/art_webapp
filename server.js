@@ -21,6 +21,7 @@ const __dirname = path.dirname(__filename);
 const { Pool } = pkg;
 
 const app = express();
+app.set('view engine', 'ejs');
 const PORT = 3002;
 
 const pool = new Pool({
@@ -95,29 +96,25 @@ app.get('/painting', async (req, res) => {
     const query = `SELECT id, title, description, image_data, mime_type FROM gallery_images WHERE id = ${id}`;
     console.log(query);
     const result = await pool.query(query);
-        
-    const image = result.rows.map(row => {
 
-	const base64Image = row.image_data.toString('base64');
-	const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
+    if (result.rows.length != 1) {
+	res.send('error fetching image');
+	return;
+    }
 
-	return `
-                <div class="image-full">
-                    <h1>${row.title}</h1>
-                    <img width="800px" src="${imageSrc}" alt="${row.title}" />
-                    <p>${row.description || 'No description available.'}</p>
-                </div>
-            `;
-    }).join('');
+    const mimeType = result.rows[0].mime_type;
+    const base64Image = result.rows[0].image_data.toString('base64');
+    const imageSrc = `data:${mimeType};base64,${base64Image}`;
+    const title = result.rows[0].title;
+    const description = result.rows[0].description || 'No description available';
 
-    let htmlOutput = htmlHead();
-    htmlOutput += `
-
-                <div class="gallery">
-`;
-    htmlOutput += image;
-    htmlOutput += htmlFoot();
-    res.send(htmlOutput);
+    const viewData = {
+	mimeType: mimeType,
+	imageSrc: imageSrc,
+	title: title,
+	description: description
+    };
+    res.render('painting', viewData);
 });
     
 app.get('/paintings', async (req, res) => {
