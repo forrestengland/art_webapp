@@ -22,6 +22,7 @@ const { Pool } = pkg;
 
 const app = express();
 app.set('view engine', 'ejs');
+app.use(express.json());
 const PORT = 3002;
 
 const pool = new Pool({
@@ -299,6 +300,32 @@ app.post('/update', (req, res) => {
     });
 });
 
+// image info update request via client javascript
+app.post('/update_ajax', async (req, res) => {
+
+    console.log('/update_ajax hit');
+
+    if (!requireAuthentication(req)) {
+	res.writeHead(303, { 'Location': '/login' });
+        res.end();
+	return;
+    }
+
+    let formData = req.body;
+
+    console.log('received from frontend: ', formData);
+
+    const { id, title, description } = formData;
+
+    await pool.query(
+        'UPDATE gallery_images SET title = $1, description = $2 WHERE id = $3',
+        [title, description || '', id]
+    );
+
+    res.json({status: "success", text: "painting info updated"});
+
+});
+
 // image info edit page
 app.get('/edit', async (req, res) => {
 
@@ -320,7 +347,7 @@ app.get('/edit', async (req, res) => {
 	const imageSrc = `data:${row.mime_type};base64,${base64Image}`;
 
 	const viewData = {
-	    script: 0,
+	    script: "/scripts/painting_edit.js",
 	    imageSrc: imageSrc,
 	    id: row.id,
 	    title: row.title,
@@ -364,7 +391,7 @@ app.get('/admin', async (req, res) => {
 // default page output - home
 app.get('/', (req, res) => {
 
-    res.render('home', {});
+    res.render('home', { script: 0 });
 
 });
 

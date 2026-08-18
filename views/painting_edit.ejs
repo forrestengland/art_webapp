@@ -1,21 +1,21 @@
 <%- include('partials/header', {script: script}) %>
-
+<div id="message"></div>
 <div class="form-container">
   <h2>Edit Image</h2>
   <div class="parent-container">
     <img src="<%= imageSrc %>" alt="<%= title %>" />
   </div>
-  <form action="/update" method="POST" enctype="multipart/x-www-form-urlencoded">
-    <input type="hidden" name="id" value="<%= id %>">
+  <form action="/update" method="POST" enctype="multipart/x-www-form-urlencoded" id="painting_edit_form">
+    <input type="hidden" name="id" value="<%= id %>" id="painting_id">
     <div class="form-group">
       <label for="title">Image Title</label>
-      <input type="text" id="title" name="title" value="<%= title %>" />
+      <input type="text" id="painting_title" name="title" value="<%= title %>" />
     </div>
     <div class="form-group">
       <label for="description">Description</label>
-      <textarea id="description" name="description" rows="3"><%= description %></textarea>
+      <textarea name="description" rows="3" id="painting_desc"><%= description %></textarea>
     </div>
-    <button type="submit" class="submit-btn">Update</button>
+    <button type="submit" class="submit-btn" id="painting_update">Update</button>
   </form>
 </div>
 
